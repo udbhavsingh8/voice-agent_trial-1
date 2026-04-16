@@ -1,0 +1,8 @@
+pipecat-ai[livekit,sarvam,runner]
+python-dotenv
+loguru
+aiohttp
+livekit
+livekit-api
+fastapi
+uvicorn
