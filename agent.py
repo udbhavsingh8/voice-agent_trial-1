@@ -17,7 +17,7 @@ from pipecat.services.sarvam.stt import SarvamSTTService
 from pipecat.services.sarvam.tts import SarvamHttpTTSService
 from pipecat.services.sarvam.llm import SarvamLLMService
 
-from pipecat.transports.services.livekit import LiveKitTransport, LiveKitParams
+from pipecat.transports.livekit.transport import LiveKitTransport, LiveKitParams
 
 load_dotenv(override=True)
 
