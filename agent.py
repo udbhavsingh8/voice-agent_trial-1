@@ -107,8 +107,8 @@ async def bot():
     tts = SarvamTTSService(
         api_key=os.getenv("SARVAM_API_KEY"),
         settings=SarvamTTSService.Settings(
-            model="bulbul:v2",
-            voice="karun",
+            model="bulbul:v3",
+            voice="advait",
         ),
     )
     messages = [{"role": "system", "content": system_prompt}]
