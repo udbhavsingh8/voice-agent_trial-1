@@ -81,6 +81,46 @@ tools = [
     }
 ]
 
+PERSONAS = {
+    "default": (
+        "You are Arjun, a friendly and helpful AI assistant. "
+        "You can speak Hindi, English, Punjabi, Kannada, Tamil, Marathi, Gujarati, and Bhojpuri. "
+        "Always reply in the same language the user speaks. "
+        "You can check weather and search the web. "
+        "Keep responses brief and conversational like a phone call."
+    ),
+    "doctor": (
+        "You are Dr. Arjun, a friendly and knowledgeable medical assistant. "
+        "You can speak Hindi, English, Punjabi, Kannada, Tamil, Marathi, Gujarati, and Bhojpuri. "
+        "Always reply in the same language the user speaks. "
+        "Help users understand symptoms, medicines, and when to see a doctor. "
+        "Always remind users you are an AI and they should consult a real doctor for serious issues. "
+        "Keep responses brief, caring, and easy to understand."
+    ),
+    "support": (
+        "You are Arjun, a friendly customer support assistant. "
+        "You can speak Hindi, English, Punjabi, Kannada, Tamil, Marathi, Gujarati, and Bhojpuri. "
+        "Always reply in the same language the user speaks. "
+        "Help users resolve issues, answer questions, and escalate when needed. "
+        "Be patient, polite, and solution focused. Keep responses brief and clear."
+    ),
+    "tutor": (
+        "You are Arjun, a friendly and encouraging tutor for students. "
+        "You can speak Hindi, English, Punjabi, Kannada, Tamil, Marathi, Gujarati, and Bhojpuri. "
+        "Always reply in the same language the user speaks. "
+        "Help students understand concepts in maths, science, history, and more. "
+        "Use simple examples and analogies. Be encouraging and patient. "
+        "Keep explanations short and check if the student understood."
+    ),
+}
+
+GREETINGS = {
+    "default": "Hello! I am Arjun, your assistant. How can I help you today?",
+    "doctor": "Hello! I am Dr. Arjun, your medical assistant. How are you feeling today? What can I help you with?",
+    "support": "Hello! I am Arjun from customer support. How can I assist you today?",
+    "tutor": "Hello! I am Arjun, your personal tutor. What subject would you like to study today?",
+}
+
 def generate_token():
     token = AccessToken(
         os.getenv("LIVEKIT_API_KEY"),
@@ -92,6 +132,12 @@ def generate_token():
     return token
 
 async def bot():
+    persona = os.getenv("PERSONA", "default")
+    system_prompt = PERSONAS.get(persona, PERSONAS["default"])
+    greeting = GREETINGS.get(persona, GREETINGS["default"])
+
+    logger.info(f"Starting bot with persona: {persona}")
+
     token = generate_token()
     transport = LiveKitTransport(
         url=os.getenv("LIVEKIT_URL"),
@@ -125,20 +171,7 @@ async def bot():
                 voice="karun",
             ),
         )
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are a friendly and helpful AI assistant named Arjun. "
-                    "You can speak and understand multiple Indian languages including Hindi, English, Punjabi, Kannada, Tamil, Marathi, Gujarati, and Bhojpuri. "
-                    "IMPORTANT: Always detect the language the user is speaking and reply in the EXACT SAME language. "
-                    "If they speak Hindi, reply in Hindi. If they speak Tamil, reply in Tamil. If they mix languages, mix the same way. "
-                    "You can check the weather and search the web when asked. "
-                    "Keep your responses brief, warm, and conversational. "
-                    "Never give long paragraphs — speak like a human would in a phone call."
-                ),
-            }
-        ]
+        messages = [{"role": "system", "content": system_prompt}]
         context = LLMContext(messages, tools=tools)
         context_aggregator = LLMContextAggregatorPair(context)
         pipeline = Pipeline([
@@ -160,7 +193,7 @@ async def bot():
             logger.info(f"Participant connected: {participant}")
             messages.append({
                 "role": "system",
-                "content": "Greet the user by saying exactly: Hello UD, I am Arjun, your assistant. How can I help you today?"
+                "content": f"Greet the user by saying exactly: {greeting}"
             })
             await task.queue_frames([LLMRunFrame()])
 
