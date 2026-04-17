@@ -101,7 +101,7 @@ async def bot():
     llm = SarvamLLMService(
         api_key=os.getenv("SARVAM_API_KEY"),
         settings=SarvamLLMService.Settings(
-            model="sarvam-30b-16k",
+            model="sarvam-m",
         ),
     )
     tts = SarvamTTSService(
