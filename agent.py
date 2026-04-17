@@ -8,8 +8,10 @@ from livekit.api import AccessToken, VideoGrants
 
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
-from pipecat.pipeline.task import PipelineTask
+from pipecat.pipeline.task import PipelineTask, PipelineParams
 from pipecat.frames.frames import LLMRunFrame
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.audio.vad.vad_analyzer import VADParams
 
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
@@ -79,13 +81,6 @@ tools = [
     }
 ]
 
-def handle_tool_call(tool_name: str, tool_args: dict) -> str:
-    if tool_name == "get_weather":
-        return get_weather(tool_args.get("city", ""))
-    elif tool_name == "search_web":
-        return search_web(tool_args.get("query", ""))
-    return "Tool not found."
-
 def generate_token():
     token = AccessToken(
         os.getenv("LIVEKIT_API_KEY"),
@@ -105,6 +100,9 @@ async def bot():
         params=LiveKitParams(
             audio_in_enabled=True,
             audio_out_enabled=True,
+            vad_analyzer=SileroVADAnalyzer(params=VADParams(
+                stop_secs=0.5
+            )),
         )
     )
     stt = SarvamSTTService(
@@ -152,7 +150,10 @@ async def bot():
             transport.output(),
             context_aggregator.assistant(),
         ])
-        task = PipelineTask(pipeline)
+        task = PipelineTask(
+            pipeline,
+            params=PipelineParams(allow_interruptions=True)
+        )
 
         @transport.event_handler("on_participant_connected")
         async def on_participant_connected(transport, participant):
