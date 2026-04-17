@@ -1,6 +1,7 @@
 import os
 import asyncio
 import aiohttp
+import requests
 from dotenv import load_dotenv
 from loguru import logger
 from livekit.api import AccessToken, VideoGrants
@@ -20,6 +21,70 @@ from pipecat.services.sarvam.llm import SarvamLLMService
 from pipecat.transports.livekit.transport import LiveKitTransport, LiveKitParams
 
 load_dotenv(override=True)
+
+def get_weather(city: str) -> str:
+    try:
+        url = f"https://wttr.in/{city}?format=3"
+        response = requests.get(url, timeout=5)
+        return response.text.strip()
+    except:
+        return f"Sorry, I could not get weather for {city} right now."
+
+def search_web(query: str) -> str:
+    try:
+        url = f"https://ddg-api.herokuapp.com/search?query={query}&limit=2"
+        response = requests.get(url, timeout=5)
+        results = response.json()
+        if results:
+            snippets = [r.get("snippet", "") for r in results]
+            return " ".join(snippets)[:500]
+        return "No results found."
+    except:
+        return f"Sorry, I could not search for {query} right now."
+
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get current weather for a city",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "city": {
+                        "type": "string",
+                        "description": "City name e.g. Mumbai, Delhi"
+                    }
+                },
+                "required": ["city"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_web",
+            "description": "Search the web for any question or topic",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query"
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    }
+]
+
+def handle_tool_call(tool_name: str, tool_args: dict) -> str:
+    if tool_name == "get_weather":
+        return get_weather(tool_args.get("city", ""))
+    elif tool_name == "search_web":
+        return search_web(tool_args.get("query", ""))
+    return "Tool not found."
 
 def generate_token():
     token = AccessToken(
@@ -66,19 +131,17 @@ async def bot():
             {
                 "role": "system",
                 "content": (
-                    ""You are a friendly and helpful AI assistant named Arjun. "
-"You can speak and understand multiple Indian languages including Hindi, English, Punjabi, Kannada, Tamil, Marathi, Gujarati, and Bhojpuri. "
-"IMPORTANT: Always detect the language the user is speaking and reply in the EXACT SAME language. "
-"If they speak Hindi, reply in Hindi. If they speak Tamil, reply in Tamil. If they mix languages, mix the same way. "
-"Keep your responses brief, warm, and conversational. "
-"Never give long paragraphs — speak like a human would in a phone call."You are a friendly and helpful AI assistant named Arjun. "
-                    "You speak naturally in Indian English and can understand Hindi too. "
+                    "You are a friendly and helpful AI assistant named Arjun. "
+                    "You can speak and understand multiple Indian languages including Hindi, English, Punjabi, Kannada, Tamil, Marathi, Gujarati, and Bhojpuri. "
+                    "IMPORTANT: Always detect the language the user is speaking and reply in the EXACT SAME language. "
+                    "If they speak Hindi, reply in Hindi. If they speak Tamil, reply in Tamil. If they mix languages, mix the same way. "
+                    "You can check the weather and search the web when asked. "
                     "Keep your responses brief, warm, and conversational. "
                     "Never give long paragraphs — speak like a human would in a phone call."
                 ),
             }
         ]
-        context = LLMContext(messages)
+        context = LLMContext(messages, tools=tools)
         context_aggregator = LLMContextAggregatorPair(context)
         pipeline = Pipeline([
             transport.input(),
