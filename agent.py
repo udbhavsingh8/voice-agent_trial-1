@@ -24,69 +24,11 @@ from pipecat.transports.livekit.transport import LiveKitTransport, LiveKitParams
 
 load_dotenv(override=True)
 
-def get_weather(city: str) -> str:
-    try:
-        url = f"https://wttr.in/{city}?format=3"
-        response = requests.get(url, timeout=5)
-        return response.text.strip()
-    except:
-        return f"Sorry, I could not get weather for {city} right now."
-
-def search_web(query: str) -> str:
-    try:
-        url = f"https://ddg-api.herokuapp.com/search?query={query}&limit=2"
-        response = requests.get(url, timeout=5)
-        results = response.json()
-        if results:
-            snippets = [r.get("snippet", "") for r in results]
-            return " ".join(snippets)[:500]
-        return "No results found."
-    except:
-        return f"Sorry, I could not search for {query} right now."
-
-tools = [
-    {
-        "type": "function",
-        "function": {
-            "name": "get_weather",
-            "description": "Get current weather for a city",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "city": {
-                        "type": "string",
-                        "description": "City name e.g. Mumbai, Delhi"
-                    }
-                },
-                "required": ["city"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "search_web",
-            "description": "Search the web for any question or topic",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "The search query"
-                    }
-                },
-                "required": ["query"]
-            }
-        }
-    }
-]
-
 PERSONAS = {
     "default": (
         "You are Arjun, a friendly and helpful AI assistant. "
         "You can speak Hindi, English, Punjabi, Kannada, Tamil, Marathi, Gujarati, and Bhojpuri. "
         "Always reply in the same language the user speaks. "
-        "You can check weather and search the web. "
         "Keep responses brief and conversational like a phone call."
     ),
     "doctor": (
@@ -116,9 +58,9 @@ PERSONAS = {
 
 GREETINGS = {
     "default": "Hello! I am Arjun, your assistant. How can I help you today?",
-    "doctor": "Hello! I am Dr. Arjun, your medical assistant. How are you feeling today? What can I help you with?",
+    "doctor": "Hello! I am Dr. Arjun, your medical assistant. How are you feeling today?",
     "support": "Hello! I am Arjun from customer support. How can I assist you today?",
-    "tutor": "Hello! I am Arjun, your personal tutor. What subject would you like to study today?",
+    "tutor": "Hello! I am Arjun, your personal tutor. What would you like to study today?",
 }
 
 def generate_token():
@@ -172,7 +114,7 @@ async def bot():
             ),
         )
         messages = [{"role": "system", "content": system_prompt}]
-        context = LLMContext(messages, tools=tools)
+        context = LLMContext(messages)
         context_aggregator = LLMContextAggregatorPair(context)
         pipeline = Pipeline([
             transport.input(),
