@@ -1,7 +1,5 @@
 import os
 import asyncio
-import aiohttp
-import requests
 from dotenv import load_dotenv
 from loguru import logger
 from livekit.api import AccessToken, VideoGrants
@@ -17,7 +15,7 @@ from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
 
 from pipecat.services.sarvam.stt import SarvamSTTService
-from pipecat.services.sarvam.tts import SarvamHttpTTSService
+from pipecat.services.sarvam.tts import SarvamTTSService
 from pipecat.services.sarvam.llm import SarvamLLMService
 
 from pipecat.transports.livekit.transport import LiveKitTransport, LiveKitParams
@@ -89,7 +87,7 @@ async def bot():
             audio_in_enabled=True,
             audio_out_enabled=True,
             vad_analyzer=SileroVADAnalyzer(params=VADParams(
-                stop_secs=0.5
+                stop_secs=0.4
             )),
         )
     )
@@ -102,50 +100,50 @@ async def bot():
     )
     llm = SarvamLLMService(
         api_key=os.getenv("SARVAM_API_KEY"),
-        model="sarvam-30b",
+        settings=SarvamLLMService.Settings(
+            model="sarvam-m",
+        ),
     )
-    async with aiohttp.ClientSession() as session:
-        tts = SarvamHttpTTSService(
-            api_key=os.getenv("SARVAM_API_KEY"),
-            aiohttp_session=session,
-            settings=SarvamHttpTTSService.Settings(
-                model="bulbul:v2",
-                voice="karun",
-            ),
-        )
-        messages = [{"role": "system", "content": system_prompt}]
-        context = LLMContext(messages)
-        context_aggregator = LLMContextAggregatorPair(context)
-        pipeline = Pipeline([
-            transport.input(),
-            stt,
-            context_aggregator.user(),
-            llm,
-            tts,
-            transport.output(),
-            context_aggregator.assistant(),
-        ])
-        task = PipelineTask(
-            pipeline,
-            params=PipelineParams(allow_interruptions=True)
-        )
+    tts = SarvamTTSService(
+        api_key=os.getenv("SARVAM_API_KEY"),
+        settings=SarvamTTSService.Settings(
+            model="bulbul:v2",
+            voice="karun",
+        ),
+    )
+    messages = [{"role": "system", "content": system_prompt}]
+    context = LLMContext(messages)
+    context_aggregator = LLMContextAggregatorPair(context)
+    pipeline = Pipeline([
+        transport.input(),
+        stt,
+        context_aggregator.user(),
+        llm,
+        tts,
+        transport.output(),
+        context_aggregator.assistant(),
+    ])
+    task = PipelineTask(
+        pipeline,
+        params=PipelineParams(allow_interruptions=True)
+    )
 
-        @transport.event_handler("on_participant_connected")
-        async def on_participant_connected(transport, participant):
-            logger.info(f"Participant connected: {participant}")
-            messages.append({
-                "role": "system",
-                "content": f"Greet the user by saying exactly: {greeting}"
-            })
-            await task.queue_frames([LLMRunFrame()])
+    @transport.event_handler("on_participant_connected")
+    async def on_participant_connected(transport, participant):
+        logger.info(f"Participant connected: {participant}")
+        messages.append({
+            "role": "system",
+            "content": f"Greet the user by saying exactly: {greeting}"
+        })
+        await task.queue_frames([LLMRunFrame()])
 
-        @transport.event_handler("on_participant_disconnected")
-        async def on_participant_disconnected(transport, participant):
-            logger.info(f"Participant disconnected: {participant}")
-            await task.cancel()
+    @transport.event_handler("on_participant_disconnected")
+    async def on_participant_disconnected(transport, participant):
+        logger.info(f"Participant disconnected: {participant}")
+        await task.cancel()
 
-        runner = PipelineRunner()
-        await runner.run(task)
+    runner = PipelineRunner()
+    await runner.run(task)
 
 if __name__ == "__main__":
     asyncio.run(bot())

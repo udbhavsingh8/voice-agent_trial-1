@@ -1,4 +1,4 @@
-pipecat-ai[livekit,sarvam,runner]
+pipecat-ai[livekit,sarvam,runner,silero]==0.0.108
 python-dotenv
 loguru
 aiohttp
