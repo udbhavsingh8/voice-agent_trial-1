@@ -6,3 +6,4 @@ livekit
 livekit-api
 fastapi
 uvicorn
+requests
